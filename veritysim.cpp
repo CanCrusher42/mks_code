@@ -1,0 +1,179 @@
+#include "veritysim.h"
+#include <QDebug>
+// Opens UART
+// Behaves like a Verity System
+/*
+Commands I may need to create
+Command                            Response
+
+wafer[lot][^sp]111222[^CR]       ACK_wfr[Lot][^CR][^NUL]
+start[][^sp]Config_name[^cr]     ACK_start[^CR]run[^CR]NOTrdy[^CR]
+start Data Stream                       ACK_data  ?? Part of the config file
+stop[^CR]                                    ACK_stop[^CR]RDY[^CR]
+rst[^CR]                                      ACK_reset[^CR]RDY[^CR]
+tst [^CR]                                      ACK_test[^CR]
+
+Events                                Value?
+EP Hit                                ENDP^CR
+DataSteam                        TRENDS data1^CR'
+InstrumentError                 ERR[^CR]
+*/
+
+
+
+
+VeritySim::VeritySim(QObject *parent) : QObject(parent)
+{
+    //    rspQueue.clear();
+        rspQueue = QList<QString>();
+        cmdQueue = QList<QString>();
+        // Open Serial Port to 9600
+        sp = new SerialPort(this);
+        //Bus 001 Device 005: ID 0403:6001 Future Technology Devices International, Ltd FT232 Serial (UART) IC
+        // This is the Null Modem Cable with yellow stipe
+        int good = sp->Open(QString("0403"),QString("6001"),(QSerialPort::BaudRate)QSerialPort::Baud9600);
+        if (good!= 0)
+        {
+            qCritical()<< "ERROR: OPENING SERIAL PORT";
+
+        }
+        eventTimer = new QTimer(this);
+        eventTimer->setSingleShot(true);
+
+        dataTimer = new QTimer(this);
+        dataTimer->setInterval(1000);
+
+        connect(eventTimer, SIGNAL(timeout()), this, SLOT(on_Event()));
+        connect(dataTimer, SIGNAL(timeout()), this, SLOT(on_DataTimer()));
+        //initValues();
+
+
+}
+
+
+void VeritySim::on_Event()
+{
+    sp->Write("EVENT\r");
+}
+
+void VeritySim::on_DataTimer()
+{
+
+
+    QString data = QString("%1").arg(data1, 11, 'f', 4, QChar('0'));
+    data.prepend("trend[0] ");
+    data.append('\r');
+    sp->Write(data);
+    data1 = data1+ 0.3333;
+    data2 =  data2+ 0.8;;
+}
+int VeritySim::ProcessTst()
+{
+    sp->Write("ACK_tst\r");
+    return 0;
+
+}
+
+int VeritySim::ProcessStop()
+{
+
+    StopTimers();
+    sp->Write("ACK_stop\r");
+    sp->Write("RDY\r");
+    return 0;
+}
+
+
+int VeritySim::ProcessStart()
+{
+    sp->Write("ACK_start\r");
+    sp->Write("run\r");
+    sp->Write("NOTrdy\r");
+    data1 = data2 = 0.0;
+
+    if (dataTimer && (!dataTimer->isActive())) {
+           dataTimer->start();
+    }
+
+    eventTimer->start(5000);
+    return 0;
+}
+
+int VeritySim::ProcessWafer()
+{
+    sp->Write("ACK_wfr[lot]\r");
+    sp->Write((uint8_t)0);
+    return 0;
+}
+
+
+int VeritySim::ProcessRst()
+{
+    StopTimers();
+    sp->Write("ACK_rst\r");
+    sp->Write("RDY\r");
+    return 0;
+}
+
+int VeritySim::ProcessNewToken(QString & token)
+{
+    if ( token.contains("tst\r") )
+    {
+            ProcessTst();
+    }
+    else if ( token.contains("stop\r") )
+    {
+            ProcessStop();
+    }
+    else if ( token.contains("rst\r") )
+    {
+            ProcessRst();
+    }
+    else if ( token.contains("start[] ") )
+    {
+            ProcessStart();
+    }
+    else if ( token.contains("wafer[lot] ") )
+    {
+            ProcessWafer();
+    }
+
+
+}
+QString VeritySim::NewTokenAvail(void)
+{
+    char newCmd[1024];
+    QString token;
+    int len = sizeof(newCmd);
+
+    int tokenSize = sp->ReadCr(100, newCmd, &len );
+
+    if (0 < tokenSize) {
+        QByteArray tmp(newCmd, tokenSize);
+        tmp.append('\0');          // ensure null termination
+
+        token = QString::fromLatin1(tmp.constData());
+        qDebug()<<"Token = "<<token;
+    }
+    return token;
+}
+
+void VeritySim::VerityCheck(void)
+{
+    QString newToken = NewTokenAvail();
+    if (newToken.size()>0)
+    {
+        ProcessNewToken(newToken);
+    }
+}
+
+void VeritySim::StopTimers(void)
+{
+    if (dataTimer && (dataTimer->isActive())) {
+           dataTimer->stop();
+    }
+
+    if (eventTimer && dataTimer->isActive()) {
+           dataTimer->stop();
+    }
+}

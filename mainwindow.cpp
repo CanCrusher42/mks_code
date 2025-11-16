@@ -1,0 +1,114 @@
+#include "mainwindow.h"
+#include "ui_mainwindow.h"
+
+#include <QDebug>
+#include <QSerialPortInfo>
+
+#define VERITY
+#define TVC
+MainWindow::MainWindow(QWidget *parent)
+    : QMainWindow(parent)
+    , ui(new Ui::MainWindow)
+{
+    ui->setupUi(this);
+
+ #ifdef TVC
+    tvcTimer= new QTimer(this);
+    simTimer = new QTimer(this);
+    mcpTimer = new QTimer(this);
+    mks = new mks_pid(this);
+    gpio = new Mcp23017(0x20<<0, this);
+
+#endif
+#ifdef VERITY
+    verTimer = new QTimer(this);
+    ver = new VeritySim(this);
+#endif
+
+
+
+#ifdef TVC
+    connect(tvcTimer, SIGNAL(timeout()), mks, SLOT(ProcessNewTvsCommand()));
+    connect(simTimer, SIGNAL(timeout()), mks, SLOT(UpdateSimulation()));
+    connect(mcpTimer, SIGNAL(timeout()), gpio, SLOT(GpioSimulation()));
+    simTimer->start(200);
+    tvcTimer->start(100);
+    mcpTimer->start(150);
+#endif
+#ifdef VERITY
+    connect(verTimer, SIGNAL(timeout()), ver, SLOT(VerityCheck()));
+    //verTimer->start(250);
+#endif
+}
+
+MainWindow::~MainWindow()
+{
+    delete ui;
+}
+
+void MainWindow::myfunction()
+{
+    mks->Write();
+
+    qDebug() << "update"    ;
+}
+
+/*
+bool MainWindow::RunVerity()
+{
+    //ver = new VeritySim(this);
+//    while(1)
+ //   {
+//        ver->VerityCheck();
+//    }
+    return true;
+}*/
+
+bool MainWindow::Test1()
+{
+QString response;
+QString expected = "AAAAA";
+int result = 0;
+int count = 0;
+
+//    mks->AddCommand(QString("P 020.3"));
+ //   mks->AddCommand(QString("R6"));
+
+    while (1)
+    {   mks->ProcessNewTvsCommand();
+        QCoreApplication::processEvents() ;
+
+    }
+    while(mks->IsRespQueueEmpty())
+    {
+        qDebug("Queue Empty");
+        QCoreApplication::processEvents() ;
+    };
+    response = mks->ReadResponseQueue();
+    qDebug()<<"Reponse = "<<response;
+    expected = "AAAAA";
+    result += response.compare(expected);
+    Q_ASSERT(response.compare(expected)==0);
+    return true;
+}
+
+/*
+    qDebug()<<"QSerial Ports";
+    const auto serialPortInfos = QSerialPortInfo::availablePorts();
+    for (const QSerialPortInfo &portInfo : serialPortInfos) {
+            qDebug() << "\n"
+                     << "Port:" << portInfo.portName() << "\n"
+                     << "Location:" << portInfo.systemLocation() << "\n"
+                     << "Description:" << portInfo.description() << "\n"
+                     << "Manufacturer:" << portInfo.manufacturer() << "\n"
+                     << "Serial number:" << portInfo.serialNumber() << "\n"
+                     << "Vendor Identifier:"
+                     << (portInfo.hasVendorIdentifier()
+                         ? QByteArray::number(portInfo.vendorIdentifier(), 16)
+                         : QByteArray()) << "\n"
+                     << "Product Identifier:"
+                     << (portInfo.hasProductIdentifier()
+                         ? QByteArray::number(portInfo.productIdentifier(), 16)
+                         : QByteArray());
+        }
+*/
