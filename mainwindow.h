@@ -8,6 +8,7 @@
 #include <mks_pid.h>
 #include <veritysim.h>
 #include "mcp23017.h"
+#include "vacuumchamber.h"
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
@@ -36,8 +37,9 @@ private:
     QTimer *simTimer;
     QTimer *verTimer;
     QTimer *mcpTimer;
+    QTimer *chamberTimer;
 
-
+    VacuumChamber *chamber;
     Mcp23017 *gpio ;
     mks_pid *mks;
     VeritySim *ver;

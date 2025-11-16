@@ -14,6 +14,7 @@ SOURCES += \
     mcp23017.cpp \
     mks_pid.cpp \
     serialport.cpp \
+    vacuumchamber.cpp \
     veritysim.cpp
 
 HEADERS += \
@@ -21,6 +22,7 @@ HEADERS += \
     mcp23017.h \
     mks_pid.h \
     serialport.h \
+    vacuumchamber.h \
     veritysim.h
 
 FORMS += \

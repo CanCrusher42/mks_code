@@ -580,12 +580,14 @@ bool mks_pid::ProcessNewIdealCommand(QString command)
     if (command.contains("open",  Qt::CaseInsensitive))
     {
         mks_setting.angle = 90.0;
+        emit AngleChanged((double)90.0);
 
 
     } else
     if (command.contains("close",  Qt::CaseInsensitive))
     {
         mks_setting.angle = 0.0;
+        emit AngleChanged((double)0.0);
 
      } else
     if (command.contains("ang",  Qt::CaseInsensitive))
@@ -598,6 +600,7 @@ bool mks_pid::ProcessNewIdealCommand(QString command)
             if (ok) {
            //     qDebug()<<"NEW ANGLE"<<ang;
                 mks_setting.angle = ang;
+                emit AngleChanged(ang);
             } else
 
             {

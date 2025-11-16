@@ -25,12 +25,31 @@ MainWindow::MainWindow(QWidget *parent)
     ver = new VeritySim(this);
 #endif
 
+#define CHAMBER
+#ifdef CHAMBER
+    chamber = new VacuumChamber(this);
 
+    // optional: initialize
+    chamber->setStartPressure_Torr(700);
+    chamber->setIsolationValve(true);
+    chamber->setValveAngle(90);
+    chamber->setSpeed(1.0);
+
+    // Create and start the 200ms simulation timer
+    chamberTimer = new QTimer(this);
+    connect(chamberTimer, SIGNAL(timeout()),
+            chamber,       SLOT(update()));
+
+    chamberTimer->start(200);
+#endif
 
 #ifdef TVC
     connect(tvcTimer, SIGNAL(timeout()), mks, SLOT(ProcessNewTvsCommand()));
     connect(simTimer, SIGNAL(timeout()), mks, SLOT(UpdateSimulation()));
     connect(mcpTimer, SIGNAL(timeout()), gpio, SLOT(GpioSimulation()));
+
+    connect(mks,SIGNAL(AngleChanged(double)), chamber, SLOT(setValveAngle(double)));
+
     simTimer->start(200);
     tvcTimer->start(100);
     mcpTimer->start(150);

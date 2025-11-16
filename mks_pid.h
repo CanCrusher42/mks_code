@@ -62,7 +62,8 @@ private:
     void OnIsolationChanged(bool active);
 
 
-
+signals:
+    void AngleChanged(double);
 
 
 
