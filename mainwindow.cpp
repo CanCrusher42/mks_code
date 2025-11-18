@@ -25,12 +25,41 @@ MainWindow::MainWindow(QWidget *parent)
     ver = new VeritySim(this);
 #endif
 
+#define CHAMBER
+#ifdef CHAMBER
+    chamber = new VacuumChamber(this);
 
+    // optional: initialize
+    chamber->setStartPressure_Torr(700);
+    chamber->setIsolationValve(gpio->GetIsolation());
+    chamber->setPurge(gpio->GetPurge());
+    chamber->setValveAngle(90);
+    chamber->setSpeed(1.0);
+
+    // Create and start the 200ms simulation timer
+    chamberTimer = new QTimer(this);
+    connect(chamberTimer, SIGNAL(timeout()),
+            chamber,       SLOT(update()));
+
+    chamberTimer->start(200);
+#endif
 
 #ifdef TVC
     connect(tvcTimer, SIGNAL(timeout()), mks, SLOT(ProcessNewTvsCommand()));
     connect(simTimer, SIGNAL(timeout()), mks, SLOT(UpdateSimulation()));
     connect(mcpTimer, SIGNAL(timeout()), gpio, SLOT(GpioSimulation()));
+
+    connect(mks,SIGNAL(AngleChanged(double)), chamber, SLOT(setValveAngle(double)));
+    connect(gpio, SIGNAL(PurgeChanged(bool)), chamber, SLOT(setPurge(bool)));
+    connect(gpio, SIGNAL(IsolationChanged(bool)), chamber, SLOT(setIsolationValve(bool)));
+    connect(chamber, SIGNAL(pressureChanged_Torr(double)), mks, SLOT(onUpdatePressure(double)));
+
+//    connect(this, SIGNAL(GenPowerChanged(bool)), this, SLOT(OnGenPowerChanged(bool)));
+//    connect(this, SIGNAL(Gen1RfOnChanged(bool)), this, SLOT(OnGen1RfOnChanged(bool)));
+//    connect(this, SIGNAL(Gen1IlkEnChanged(bool)), this, SLOT(OnGen1IlkEnChanged(bool)));
+
+
+
     simTimer->start(200);
     tvcTimer->start(100);
     mcpTimer->start(150);

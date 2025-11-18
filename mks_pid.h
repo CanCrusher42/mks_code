@@ -62,7 +62,8 @@ private:
     void OnIsolationChanged(bool active);
 
 
-
+signals:
+    void AngleChanged(double);
 
 
 
@@ -73,6 +74,7 @@ public slots:
     void UpdatePressure();
     void AddCommand(QString cmd);
     void UpdateSimulation();
+    void onUpdatePressure(double newPressure);
 signals:
 
 private:

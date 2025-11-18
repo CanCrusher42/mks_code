@@ -421,6 +421,11 @@ float mks_pid::GetSlopeAtPressureP3(float pres, float ang)
     return derivative;
 
 }
+void mks_pid::onUpdatePressure(double newPressure)
+{
+    mks_setting.pressure=(float)newPressure;
+//    qDebug()<<"new pressure"<<newPressure;
+}
 
 void mks_pid::UpdateDac()
 {
@@ -430,13 +435,22 @@ void mks_pid::UpdateDac()
 
     // MAX DAC = 4096
     // .pressure = 0-
-    float press = (int)round(mks_setting.pressure/1000 * MAX_DAC);
-//    qDebug()<<"dac setting = "<<mks_setting.pressure<<"  - "<<  press;
-    i2c_write_dac(press);
+    uint16_t dacValue = (MAX_DAC-1);
+
+    if (mks_setting.pressure>10.0)
+        dacValue = (MAX_DAC-1);
+    else
+       {
+        dacValue = (uint16_t)round(mks_setting.pressure/10.00 * (MAX_DAC-1));
+      }
+    //float press = (int)round(mks_setting.pressure/1000 * MAX_DAC);
+    qDebug()<<"Press = "<<mks_setting.pressure<<"  Dac =  "<<  dacValue << " Angle = "<<mks_setting.angle;
+    i2c_write_dac(dacValue);
 
 }
 void mks_pid::UpdatePressure()
 {
+#if 0
     float deriv;
 #ifndef USE_ANGLE
     if (mks_setting.pidEnabled)
@@ -484,6 +498,7 @@ void mks_pid::UpdatePressure()
 //        qDebug()<<"(After)simPid.N = "<<simPid.N;
 #ifndef USE_ANGLE
     }
+#endif
 #endif
 }
 
@@ -580,12 +595,14 @@ bool mks_pid::ProcessNewIdealCommand(QString command)
     if (command.contains("open",  Qt::CaseInsensitive))
     {
         mks_setting.angle = 90.0;
+        emit AngleChanged((double)90.0);
 
 
     } else
     if (command.contains("close",  Qt::CaseInsensitive))
     {
         mks_setting.angle = 0.0;
+        emit AngleChanged((double)0.0);
 
      } else
     if (command.contains("ang",  Qt::CaseInsensitive))
@@ -598,6 +615,7 @@ bool mks_pid::ProcessNewIdealCommand(QString command)
             if (ok) {
            //     qDebug()<<"NEW ANGLE"<<ang;
                 mks_setting.angle = ang;
+                emit AngleChanged(ang);
             } else
 
             {
