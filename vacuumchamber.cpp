@@ -20,10 +20,11 @@ VacuumChamber::VacuumChamber(QObject *parent)
       m_pressure_mT(P_MAX),
       m_valveAngle(10.0),
       m_isoValveOpen(false),
-      m_speed(1.0),
+      m_speed(2.0),
       m_lowPressureFactor(1.0),
       m_purge(false),
-      m_purgeRate_mTps(50000.0)
+      m_purgeRate_mTps(50000.0),
+      m_leakFactor(0.08)   // <-- NEW (5% default leak)
 {
 }
 
@@ -58,18 +59,20 @@ void VacuumChamber::setStartPressure_Torr(double torr)
 // -----------------------------------------------------------------------------
 void VacuumChamber::setValveAngle(double angleDeg)
 {
-    m_valveAngle = clampd(angleDeg, 10.0, 90.0);
-    qDebug()<<"Chamber Angle"<<m_valveAngle;
+    m_valveAngle = clampd(angleDeg, 0.0, 90.0);
+   // qDebug()<<"New Chamber Angle"<<m_valveAngle;
 }
 
 void VacuumChamber::setIsolationValve(bool open)
 {
     m_isoValveOpen = open;
+    qDebug()<<"Iso Open: "<<m_isoValveOpen;
 }
 
 void VacuumChamber::setPurge(bool enabled)
 {
     m_purge = enabled;
+    qDebug()<<"Chamber Pruge Enable: "<<m_purge;
 }
 
 void VacuumChamber::setSpeed(double speed)
@@ -91,6 +94,13 @@ void VacuumChamber::setPurgeRate(double mT_per_sec)
         mT_per_sec = 0;
 
     m_purgeRate_mTps = mT_per_sec;
+}
+
+void VacuumChamber::setLeakFactor(double factor)   // <-- NEW
+{
+    if (factor < 0.0) factor = 0.0;
+    if (factor > 1.0) factor = 1.0;
+    m_leakFactor = factor;
 }
 
 // -----------------------------------------------------------------------------
@@ -120,14 +130,36 @@ void VacuumChamber::update()
     const double dt = FIXED_DT;
 
     if (!m_isoValveOpen)
+    {
+        // ---------------------------------------------------------
+        // LEAK-BACK STILL OCCURS even with isolation closed
+        // ---------------------------------------------------------
+        double fullDropRate = (P_MAX - P_MIN) / 60.0;  // matches pump model
+        double leakRate = fullDropRate * m_leakFactor;
+
+        m_pressure_mT += leakRate * dt;
+        m_pressure_mT = clampd(m_pressure_mT, P_MIN, P_MAX);
+
+        emit pressureChanged_mT(m_pressure_mT);
+        emit pressureChanged_Torr(currentPressure_Torr());
+        emit pressureChanged_Volts(pressureVolts());
+
         return;
+    }
 
     // -------------------------------------------------------------------------
     // PURGE MODE → pressure increases
     // -------------------------------------------------------------------------
     if (m_purge)
     {
+        qDebug()<<"Updating Prs with PURGE";
         m_pressure_mT += (m_purgeRate_mTps * dt);
+
+        // --- LEAK-BACK ALSO APPLIES HERE ---
+        double fullDropRate = (P_MAX - P_MIN) / 60.0;
+        double leakRate = fullDropRate * m_leakFactor;
+        m_pressure_mT += leakRate * dt;
+
         m_pressure_mT = clampd(m_pressure_mT, P_MIN, P_MAX);
 
         emit pressureChanged_mT(m_pressure_mT);
@@ -139,29 +171,64 @@ void VacuumChamber::update()
     // -------------------------------------------------------------------------
     // PUMP-DOWN MODE → pressure decreases
     // -------------------------------------------------------------------------
+    // -------------------------------------------------------------------------
+    // PUMP-DOWN MODE → pressure decreases
+    // -------------------------------------------------------------------------
     double valveFactor =
-        clampd((m_valveAngle - 10.0) / (90.0 - 10.0), 0.0, 1.0);
+            clampd((m_valveAngle - 10.0) / (90.0 - 10.0), 0.0, 1.0);
 
-    if (valveFactor <= 0.0)
-        return;
+    if (valveFactor > 0.0)
+    {
+        double pressureNorm =
+            clampd((m_pressure_mT - P_MIN) / (P_MAX - P_MIN), 0.0, 1.0);
 
-    double pressureNorm =
-        clampd((m_pressure_mT - P_MIN) / (P_MAX - P_MIN), 0.0, 1.0);
+        double pressureFactor =
+            0.1 + pressureNorm * m_lowPressureFactor;
 
-    double pressureFactor =
-        0.1 + pressureNorm * m_lowPressureFactor;
+        const double baseTime = 60.0;
+        double fullDropRate = (P_MAX - P_MIN) / baseTime;
 
-    const double baseTime = 60.0;
-    double fullDropRate = (P_MAX - P_MIN) / baseTime;
+        double effectiveRate =
+            fullDropRate *
+            valveFactor *
+            m_speed *
+            pressureFactor;
 
-    double effectiveRate =
-        fullDropRate *
-        valveFactor *
-        m_speed *
-        pressureFactor;
+        // Faster pump down from atmosphere
+        if (m_pressure_mT > 5000.0)
+            effectiveRate *= 4.0;
 
-    m_pressure_mT -= effectiveRate * dt;
+        // --- Extra inertia below 1 Torr (1000 mT) ---
+        if (m_pressure_mT < 1000.0)
+        {
+            double lowPScale =
+                clampd((m_pressure_mT - P_MIN) / (1000.0 - P_MIN), 0.0, 1.0);
+
+            // 1.0 at 1T, down to ~0.25 near base pressure
+            double inertiaScale = 0.25 + 0.75 * lowPScale;
+            effectiveRate *= inertiaScale;
+        }
+
+        m_pressure_mT -= effectiveRate * dt;
+    }
+
+
+    // -------------------------------------------------------------------------
+    // LEAK-BACK ALWAYS ACTIVE
+    // -------------------------------------------------------------------------
+    double fullDropRate = (P_MAX - P_MIN) / 60.0;
+
+    double leakRate = fullDropRate * m_leakFactor;
+    // --- Extra inertia below 1 Torr (1000 mT) ---
+    if (m_pressure_mT < 1000.0)
+    {
+        leakRate *= 0.02;
+    }
+    m_pressure_mT += leakRate * dt;
+
     m_pressure_mT = clampd(m_pressure_mT, P_MIN, P_MAX);
+
+   // qDebug()<<"P="<<m_pressure_mT<<"  "<<currentPressure_Torr();
 
     emit pressureChanged_mT(m_pressure_mT);
     emit pressureChanged_Torr(currentPressure_Torr());

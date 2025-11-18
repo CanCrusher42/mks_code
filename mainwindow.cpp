@@ -31,7 +31,8 @@ MainWindow::MainWindow(QWidget *parent)
 
     // optional: initialize
     chamber->setStartPressure_Torr(700);
-    chamber->setIsolationValve(true);
+    chamber->setIsolationValve(gpio->GetIsolation());
+    chamber->setPurge(gpio->GetPurge());
     chamber->setValveAngle(90);
     chamber->setSpeed(1.0);
 
@@ -49,6 +50,15 @@ MainWindow::MainWindow(QWidget *parent)
     connect(mcpTimer, SIGNAL(timeout()), gpio, SLOT(GpioSimulation()));
 
     connect(mks,SIGNAL(AngleChanged(double)), chamber, SLOT(setValveAngle(double)));
+    connect(gpio, SIGNAL(PurgeChanged(bool)), chamber, SLOT(setPurge(bool)));
+    connect(gpio, SIGNAL(IsolationChanged(bool)), chamber, SLOT(setIsolationValve(bool)));
+    connect(chamber, SIGNAL(pressureChanged_Torr(double)), mks, SLOT(onUpdatePressure(double)));
+
+//    connect(this, SIGNAL(GenPowerChanged(bool)), this, SLOT(OnGenPowerChanged(bool)));
+//    connect(this, SIGNAL(Gen1RfOnChanged(bool)), this, SLOT(OnGen1RfOnChanged(bool)));
+//    connect(this, SIGNAL(Gen1IlkEnChanged(bool)), this, SLOT(OnGen1IlkEnChanged(bool)));
+
+
 
     simTimer->start(200);
     tvcTimer->start(100);

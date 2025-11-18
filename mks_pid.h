@@ -74,6 +74,7 @@ public slots:
     void UpdatePressure();
     void AddCommand(QString cmd);
     void UpdateSimulation();
+    void onUpdatePressure(double newPressure);
 signals:
 
 private:

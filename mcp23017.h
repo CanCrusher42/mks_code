@@ -19,49 +19,37 @@
 #define OLATA    0x14
 #define OLATB    0x15
 
-//0 Yellow   Pin 7(6)  Purge
-//1 Orange   Pin 8(7)  Isolation
-//2 Red      Pin 13(12)GN0_RF1 GEN_RF1
-//3 Brown    Pin 16(15)GN0_ILK
-//4 Black    Pin 15(14)GEN_PWER
+
 // ===============================================================
-// Port B Inputs
+// PORT B INPUT BIT DEFINITIONS
+// (Active low in hardware → active high in software via IPOLB)
 // ===============================================================
-#define B0_PURGE_BIT            0
-#define B1_ISOLATION_BIT        1
-#define B2_GEN1_RF_ON_BIT       2
-#define B3_GEN1_ILK_EN_BIT      3
-#define B4_GEN_POWER_BIT        4
+#define B0_PURGE_BIT              0
+#define B1_ISOLATION_BIT          1
+#define B2_GEN1_RF_ON_BIT         2
+#define B3_GEN1_ILK_EN_BIT        3
+#define B4_GEN_POWER_BIT          4
 
-/*
-#define B0_PURGE_BIT            0
-#define B1_ISOLATION_BIT        1
-#define B2_GEN1_RF_ON_BIT       2
-#define B3_GEN1_ILK_EN_BIT      3
-#define B4_GEN_POWER_BIT        4
-*/
-
-
-#define B0_PURGE_MASK           (1u << B0_PURGE_BIT)
-#define B1_ISOLATION_MASK       (1u << B1_ISOLATION_BIT)
-#define B2_GEN1_RF_ON_MASK      (1u << B2_GEN1_RF_ON_BIT)
-#define B3_GEN1_ILK_EN_MASK     (1u << B3_GEN1_ILK_EN_BIT)
-#define B4_GEN_POWER_MASK       (1u << B4_GEN_POWER_BIT)
-
-
+#define B0_PURGE_MASK             (1u << B0_PURGE_BIT)
+#define B1_ISOLATION_MASK         (1u << B1_ISOLATION_BIT)
+#define B2_GEN1_RF_ON_MASK        (1u << B2_GEN1_RF_ON_BIT)
+#define B3_GEN1_ILK_EN_MASK       (1u << B3_GEN1_ILK_EN_BIT)
+#define B4_GEN_POWER_MASK         (1u << B4_GEN_POWER_BIT)
 
 #define PORTB_INPUT_MASK  ( \
-    B4_GEN_POWER_MASK  |    \
-    B3_GEN1_ILK_EN_MASK|    \
-    B2_GEN1_RF_ON_MASK |    \
-    B1_ISOLATION_MASK  |    \
-    B0_PURGE_MASK)
+    B0_PURGE_MASK       |   \
+    B1_ISOLATION_MASK   |   \
+    B2_GEN1_RF_ON_MASK  |   \
+    B3_GEN1_ILK_EN_MASK |   \
+    B4_GEN_POWER_MASK )
+
 
 // ===============================================================
-// Port A Outputs
+// PORT A OUTPUT BIT DEFINITIONS
 // ===============================================================
-#define A0_FRM_GEN0_ILK_BIT    0
-#define A0_FRM_GEN0_ILK_MASK   (1u << A0_FRM_GEN0_ILK_BIT)
+#define A0_FRM_GEN0_ILK_BIT      0
+#define A0_FRM_GEN0_ILK_MASK     (1u << A0_FRM_GEN0_ILK_BIT)
+
 
 // ===============================================================
 // MCP23017 CLASS (QObject-Based)
@@ -75,32 +63,43 @@ public:
 
     int Init();
     void PollInputs();
+
 public slots:
     void GpioSimulation();
 
-    // Output control
+    // OUTPUT CONTROL (Port A)
     void SetFrmGen0Ilk(bool active);
     bool GetFrmGen0Ilk();
 
+    // GETTERS for whole ports
+    uint8_t GetPortA();
+    uint8_t GetPortB();
+
+    // Individual input getters (Port B)
+    bool GetPurge();
+    bool GetIsolation();
+    bool GetGen1RfOn();
+    bool GetGen1IlkEn();
+    bool GetGenPower();
+
+    // Input change callbacks
     void OnGenPowerChanged(bool active);
     void OnGen1RfOnChanged(bool active);
-
     void OnGen1IlkEnChanged(bool active);
     void OnPurgeChanged(bool active);
     void OnIsolationChanged(bool active);
 
 signals:
-    void GenPowerChanged(bool active);
-    void Gen1RfOnChanged(bool active);
-    void Gen1IlkEnChanged(bool active);
     void PurgeChanged(bool active);
     void IsolationChanged(bool active);
+    void Gen1RfOnChanged(bool active);
+    void Gen1IlkEnChanged(bool active);
+    void GenPowerChanged(bool active);
 
 private:
     uint8_t addr;
     uint8_t m_lastPortBState;
 
-    // Internal evaluation
     void EvaluateFrmGen0Ilk(uint8_t portB);
 };
 

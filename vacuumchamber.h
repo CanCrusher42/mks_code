@@ -27,6 +27,7 @@ public slots:
     void setSpeed(double speed);
     void setLowPressureFactor(double factor);
     void setPurgeRate(double mT_per_sec);
+    void setLeakFactor(double factor);   // <-- NEW
 
     // Starting pressure initialization
     void setStartPressure_mT(double mT);
@@ -56,6 +57,7 @@ private:
     double m_lowPressureFactor;
     bool   m_purge;
     double m_purgeRate_mTps;
+    double m_leakFactor;          // <-- NEW
 };
 
 #endif // VACUUMCHAMBER_H
