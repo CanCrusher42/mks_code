@@ -98,7 +98,7 @@ bool MainWindow::Test1()
 QString response;
 QString expected = "AAAAA";
 int result = 0;
-int count = 0;
+
 
 //    mks->AddCommand(QString("P 020.3"));
  //   mks->AddCommand(QString("R6"));

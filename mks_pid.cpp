@@ -336,8 +336,6 @@ void mks_pid::initValues(void)
 
     simPid.N0Start = 1000.0; // Initial quantity - Atomspeare
     simPid.N0Delta = 0.0; // Initial quantity
-    simPid.lambda = 0.1; // Decay constant
-    simPid.t_max = 50; // Maximum time
     simPid.dt = 0.5;     // Time step
     simPid.N = 1000; // Quantity at time t
     simPid.t = 0; // Current time
@@ -361,66 +359,6 @@ void mks_pid::Write()
        sp->Write();
 }
 
-/* P = 1000 exp(-0.1 *(angle/90)*t)
- * P= 1000 exp(-0.1  *t)
- * t = -10*ln(P/1000)
- * *
- * */
-float mks_pid::GetSlopeAtPressureP1(float pres, float ang)
-{
-    float lamba = -0.1;
-    float t = (1.0/lamba)*log(pres/1000.0);
-
-    //qDebug()<<"t for pres "<<pres<<" = "<<t;
-    float derivative = -100*exp(lamba*t);
-    qDebug()<<"1 - Press = "<<pres<<" t = "<<t<<" Slope here is "<< derivative<<" lamba*t = "<<lamba*t;
-    return derivative;
-
-}
-
-/* P = 1000 exp(-0.1 *(angle/90)*t)
- * P = 1000 exp(L * A * t / 90)
- * t = -10*ln(P/1000)
- * t = 90 * log (P/1000).(l*a)
- * *
- * */
-float mks_pid::GetSlopeAtPressureP2(float pres, float ang)
-{
-    float lamba = -0.1;
-
-    //float t = (1.0/lamba)*log(pres/1000.0);
-    float t = 90.0/1.1 * log(pres/1000.0) / (lamba * ang);
-
-
- //   qDebug()<<"t for pres "<<pres<<" = "<<t;
-   // float derivative = ((-100000.0)/pres) * exp(lamba*ang*t/90);
-
-    float derivative = ((-100.0)) * exp(lamba*ang*t/90.0);
-
-   // qDebug()<<"2 - Press = "<<pres<< " t = "<<t<<" Slope here is "<< derivative<<"ang = "<<ang<<" lamba*A*t/90 = "<<lamba*ang*t/90.0;
-;
-    return derivative;
-
-}
-
-float mks_pid::GetSlopeAtPressureP3(float pres, float ang)
-{
-    float lamba = -0.3;
-
-    //float t = (1.0/lamba)*log(pres/1000.0);
-    //float t = 90.0/1.1 * log(pres/1000.0) / (lamba * ang);
-
-
- //   qDebug()<<"t for pres "<<pres<<" = "<<t;
-   // float derivative = ((-100000.0)/pres) * exp(lamba*ang*t/90);
-    float e = exp(lamba*ang/90.0);
-    float derivative = ((-600.0)) * (1 - e);
-
- //   qDebug()<<"3 - Press = "<<pres<< " Slope here is "<< derivative<<"ang = "<<ang<<" lamba*A*t/90 = "<<lamba*ang/90.0 << " (1- e) = "<<(1-e);
-;
-    return derivative;
-
-}
 void mks_pid::onUpdatePressure(double newPressure)
 {
     mks_setting.pressure=(float)newPressure;
@@ -450,56 +388,6 @@ void mks_pid::UpdateDac()
 }
 void mks_pid::UpdatePressure()
 {
-#if 0
-    float deriv;
-#ifndef USE_ANGLE
-    if (mks_setting.pidEnabled)
-    {
-#endif
-//        qDebug()<<"(Before)simPid.N = "<<simPid.N<<" dir = "<<simPid.direction;
-#ifndef USE_ANGLE        
-        if (simPid.direction>0)
-        {
-            simPid.N = simPid.N0Start + simPid.N0Delta * (1.0  - exp(-simPid.lambda * simPid.t)) ;
-        }
-        else if (simPid.direction < 0 )
-        {
-            qDebug()<<"simPid.N0Start =" << simPid.N0Start << "  (1.0 - exp(-simPid.lambda * simPid.t) = "<<(1.0-exp(-simPid.lambda * simPid.t))<<"   simPid.N0Delta * (1.0-exp(-simPid.lambda * simPid.t)) = "<<simPid.N0Delta * (1.0 - exp(-simPid.lambda * simPid.t))<<" t = "<<simPid.t ;
-            simPid.N = simPid.N0Start + simPid.N0Delta * (1.0- exp(-simPid.lambda * simPid.t));
-        }
-#else
-        
-
-#define SET_ANGLE 0.0
-        //deriv = GetSlopeAtPressureP1(simPid.N, simPid.angle);
-        deriv = GetSlopeAtPressureP3(simPid.N, simPid.angle);
-        if (simPid.angle>=SET_ANGLE)
-        {
-            // Need to move towards vacum.
-
-            simPid.N = simPid.N + deriv * simPid.dt;// simPid.N0Start + simPid.N0Delta * (1.0  - exp(-simPid.lambda * simPid.t)) ;
-            // Noise
-            simPid.N += rand()%(3);
-            if (simPid.N<0.0)
-                simPid.N = 0.0;
-        }
-        else if (simPid.direction < 0 )
-        {
-            // Need to move away from  vacum.
-            simPid.N = simPid.N - deriv * simPid.dt;// simPid.N0Start + simPid.N0Delta * (1.0  - exp(-simPid.lambda * simPid.t)) ;
-            if (simPid.N>1000)
-                simPid.N = 1000.0;
-        }
-  //      qDebug()<<"Pres = "<<simPid.N;
-#endif
-
-        mks_setting.pressure = simPid.N;
-        simPid.t = simPid.t + simPid.dt;
-//        qDebug()<<"(After)simPid.N = "<<simPid.N;
-#ifndef USE_ANGLE
-    }
-#endif
-#endif
 }
 
 void mks_pid::UpdateSimulation()
@@ -517,7 +405,6 @@ void mks_pid::ProcessNewTvsCommand()
 
    QString cmd,rsp;
 
-   //GetSlopeAtPressureP(500, 50);
    //qDebug()<<"PROCESS";
    len1 = sp->PeekCr(50);
    if (len1>0)
@@ -548,20 +435,6 @@ void mks_pid::ProcessNewTvsCommand()
         rsp = rspQueue.takeFirst();
         sp->Write(rsp);
       }
-
-      //pressure 0-100.0 or 0-1000
-      //DAC 0 - 4096
-
-
-      // MAX DAC = 4096
-      // .pressure = 0-
-    /*  press = (int)round(mks_setting.pressure/1000 * MAX_DAC);
-      qDebug()<<"dac setting = "<<mks_setting.pressure<<"  - "<<  press;
-      i2c_write_dac(press);
-      //i2c_write_dac(count);
-      count+= 128;
-      if (count > 0x4FFF)
-          count = 0; */
    }
 }
 

@@ -20,8 +20,6 @@ struct _simPid {
     double N0Delta; // Initial quantity
     double N0Start;
 
-    double lambda = 0.1; // Decay constant
-    double t_max = 50.0; // Maximum time
     double dt = 1.0;     // Time step
     double N; // Quantity at time t
     double t; // Current time
@@ -42,12 +40,6 @@ public:
     int ProcessReponseRequest(int reqResponse);
     bool IsRespQueueEmpty();
     QString ReadResponseQueue();
-    float GetSlopeAtPressureP1(float pres, float ang);
-    float GetSlopeAtPressureP2(float pres, float ang);
-    float GetSlopeAtPressureP3(float pres, float ang);
-
-
-
 
     int Configure23017(void);
     void Poll23017Inputs(void);   // call this from your other routine
@@ -64,8 +56,6 @@ private:
 
 signals:
     void AngleChanged(double);
-
-
 
 public slots:
     void Write();

@@ -137,7 +137,7 @@ int VeritySim::ProcessNewToken(QString & token)
     {
             ProcessWafer();
     }
-
+return 0;
 
 }
 QString VeritySim::NewTokenAvail(void)

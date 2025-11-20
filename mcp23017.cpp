@@ -6,7 +6,6 @@
 extern "C" int i2c_write(uint8_t addr, uint8_t reg, uint8_t data);
 extern "C" int i2c_read(uint8_t addr, uint8_t reg, uint8_t *result);
 
-
 // ===============================================================
 // Constructor
 // ===============================================================
@@ -18,7 +17,6 @@ Mcp23017::Mcp23017(uint8_t i2cAddress, QObject *parent)
     Init();
 }
 
-
 // ===============================================================
 // Initialization
 // ===============================================================
@@ -26,39 +24,42 @@ int Mcp23017::Init()
 {
     int result = 0;
 
-    // Connect internal signals/slots
+    // Internal signals/slots
     connect(this, SIGNAL(PurgeChanged(bool)),       this, SLOT(OnPurgeChanged(bool)));
     connect(this, SIGNAL(IsolationChanged(bool)),   this, SLOT(OnIsolationChanged(bool)));
     connect(this, SIGNAL(Gen1RfOnChanged(bool)),    this, SLOT(OnGen1RfOnChanged(bool)));
     connect(this, SIGNAL(Gen1IlkEnChanged(bool)),   this, SLOT(OnGen1IlkEnChanged(bool)));
     connect(this, SIGNAL(GenPowerChanged(bool)),    this, SLOT(OnGenPowerChanged(bool)));
 
-    // -------------------------------------------------------------
-    // Disable sequential addressing (IOCON.SEQOP = 1)
-    // -------------------------------------------------------------
+    // Disable sequential addressing
     result = i2c_write(addr, IOCON, 0x20);
     usleep(10);
     if (result < 0) return result;
 
-    // -------------------------------------------------------------
-    // PORT A CONFIGURATION (OUTPUTS)
-    // -------------------------------------------------------------
-    result += i2c_write(addr, IODIRA, 0x00);   // all outputs
+    // PORT A: all outputs, no pullups
+    result += i2c_write(addr, IODIRA, 0x00);
     result += i2c_write(addr, IPOLA,  0x00);
     result += i2c_write(addr, GPPUA,  0x00);
-    result += i2c_write(addr, OLATA,  0x00);
+
+    // Drive A0–A3 HIGH at startup
+    uint8_t initialA =
+            A0_DOOR_ILK_MASK |
+            A1_AIR_ILK_MASK  |
+            A2_VAC1_ILK_MASK |
+            A3_VAC2_ILK_MASK;
+
+    result += i2c_write(addr, OLATA, initialA);
+
     if (result < 0) return result;
 
-    // -------------------------------------------------------------
-    // PORT B CONFIGURATION (INPUTS B0..B4)
-    // -------------------------------------------------------------
-    result += i2c_write(addr, IODIRB, 0x1F);               // B0..B4 inputs
-    result += i2c_write(addr, IPOLB, PORTB_INPUT_MASK);    // invert active low → active high
-    result += i2c_write(addr, GPPUB, PORTB_INPUT_MASK);    // weak pullups
-    result += i2c_write(addr, OLATB, 0x00);
+    // PORT B: inputs B0..B4
+    result += i2c_write(addr, IODIRB, PORTB_INPUT_MASK);
+    result += i2c_write(addr, IPOLB,  PORTB_INPUT_MASK);
+    result += i2c_write(addr, GPPUB,  PORTB_INPUT_MASK);
+    result += i2c_write(addr, OLATB,  0x00);
     if (result < 0) return result;
 
-    // Initialize last state
+    // Read initial Port B
     uint8_t initial = 0;
     i2c_read(addr, GPIOB, &initial);
     m_lastPortBState = initial;
@@ -68,9 +69,8 @@ int Mcp23017::Init()
     return result;
 }
 
-
 // ===============================================================
-// Poll Inputs and Emit Qt Signals
+// Poll Inputs
 // ===============================================================
 void Mcp23017::PollInputs()
 {
@@ -82,37 +82,26 @@ void Mcp23017::PollInputs()
     if (!changed)
         return;
 
-    qDebug() << "PortB changed: new ="
-             << QString::number(portB, 16)
-             << "old ="
-             << QString::number(m_lastPortBState, 16);
-
-    // Bit 0 — PURGE
     if (changed & B0_PURGE_MASK)
         emit PurgeChanged(portB & B0_PURGE_MASK);
 
-    // Bit 1 — ISOLATION
     if (changed & B1_ISOLATION_MASK)
         emit IsolationChanged(portB & B1_ISOLATION_MASK);
 
-    // Bit 2 — GEN1_RF_ON
     if (changed & B2_GEN1_RF_ON_MASK)
         emit Gen1RfOnChanged(portB & B2_GEN1_RF_ON_MASK);
 
-    // Bit 3 — GEN1_ILK_EN
     if (changed & B3_GEN1_ILK_EN_MASK)
         emit Gen1IlkEnChanged(portB & B3_GEN1_ILK_EN_MASK);
 
-    // Bit 4 — GEN_POWER
     if (changed & B4_GEN_POWER_MASK)
         emit GenPowerChanged(portB & B4_GEN_POWER_MASK);
 
     m_lastPortBState = portB;
 }
 
-
 // ===============================================================
-// GPIO Simulation Engine
+// Simulation Engine
 // ===============================================================
 void Mcp23017::GpioSimulation()
 {
@@ -125,9 +114,8 @@ void Mcp23017::GpioSimulation()
     EvaluateFrmGen0Ilk(portB);
 }
 
-
 // ===============================================================
-// Simulation Logic for FRM_GEN0_ILK (Port A bit 0)
+// Evaluate FRM_GEN0_ILK (Port A4)
 // ===============================================================
 void Mcp23017::EvaluateFrmGen0Ilk(uint8_t portB)
 {
@@ -135,42 +123,41 @@ void Mcp23017::EvaluateFrmGen0Ilk(uint8_t portB)
     bool genIlkEn = (portB & B3_GEN1_ILK_EN_MASK);
 
     bool outputState = (genPower && genIlkEn);
-
-  //  qDebug() << "[SIM] GEN_POWER=" << genPower
-  //           << "ILK_EN=" << genIlkEn
-  //           << "→ FRM_GEN0_ILK =" << outputState;
-
     SetFrmGen0Ilk(outputState);
 }
 
-
 // ===============================================================
-// Port A Output Control (read-modify-write)
+// Helper: Write 1 bit on PORT A (read-modify-write)
 // ===============================================================
-void Mcp23017::SetFrmGen0Ilk(bool active)
+static void writePortA(uint8_t addr, uint8_t mask, bool active)
 {
     uint8_t portA = 0;
-
     if (i2c_read(addr, OLATA, &portA) != 0)
         return;
 
     if (active)
-        portA |= A0_FRM_GEN0_ILK_MASK;
+        portA |= mask;
     else
-        portA &= ~A0_FRM_GEN0_ILK_MASK;
+        portA &= ~mask;
 
     i2c_write(addr, OLATA, portA);
 }
 
-bool Mcp23017::GetFrmGen0Ilk()
-{
-    uint8_t portA = 0;
-    if (i2c_read(addr, OLATA, &portA) != 0)
-        return false;
+// ===============================================================
+// Port A Output Setters/Getters
+// ===============================================================
+void Mcp23017::SetFrmGen0Ilk(bool active)  { writePortA(addr, A4_FRM_GEN0_ILK_MASK, active); }
+bool Mcp23017::GetFrmGen0Ilk()             { return GetPortA() & A4_FRM_GEN0_ILK_MASK; }
 
-    return (portA & A0_FRM_GEN0_ILK_MASK);
-}
+void Mcp23017::SetDoorIlk(bool active)     { writePortA(addr, A0_DOOR_ILK_MASK, active); }
+void Mcp23017::SetAirIlk(bool active)      { writePortA(addr, A1_AIR_ILK_MASK, active); }
+void Mcp23017::SetVac1Ilk(bool active)     { writePortA(addr, A2_VAC1_ILK_MASK, active); }
+void Mcp23017::SetVac2Ilk(bool active)     { writePortA(addr, A3_VAC2_ILK_MASK, active); }
 
+bool Mcp23017::GetDoorIlk()                { return GetPortA() & A0_DOOR_ILK_MASK; }
+bool Mcp23017::GetAirIlk()                 { return GetPortA() & A1_AIR_ILK_MASK; }
+bool Mcp23017::GetVac1Ilk()                { return GetPortA() & A2_VAC1_ILK_MASK; }
+bool Mcp23017::GetVac2Ilk()                { return GetPortA() & A3_VAC2_ILK_MASK; }
 
 // ===============================================================
 // Port Getters
@@ -189,41 +176,20 @@ uint8_t Mcp23017::GetPortB()
     return portB;
 }
 
+// ===============================================================
+// Input Getters
+// ===============================================================
+bool Mcp23017::GetPurge()        { return GetPortB() & B0_PURGE_MASK; }
+bool Mcp23017::GetIsolation()    { return GetPortB() & B1_ISOLATION_MASK; }
+bool Mcp23017::GetGen1RfOn()     { return GetPortB() & B2_GEN1_RF_ON_MASK; }
+bool Mcp23017::GetGen1IlkEn()    { return GetPortB() & B3_GEN1_ILK_EN_MASK; }
+bool Mcp23017::GetGenPower()     { return GetPortB() & B4_GEN_POWER_MASK; }
 
 // ===============================================================
-// Individual Input Getters (Port B)
+// Input change callbacks
 // ===============================================================
-bool Mcp23017::GetPurge()           { return GetPortB() & B0_PURGE_MASK; }
-bool Mcp23017::GetIsolation()       { return GetPortB() & B1_ISOLATION_MASK; }
-bool Mcp23017::GetGen1RfOn()        { return GetPortB() & B2_GEN1_RF_ON_MASK; }
-bool Mcp23017::GetGen1IlkEn()       { return GetPortB() & B3_GEN1_ILK_EN_MASK; }
-bool Mcp23017::GetGenPower()        { return GetPortB() & B4_GEN_POWER_MASK; }
-
-
-// ===============================================================
-// Slots for Input Change Events
-// ===============================================================
-void Mcp23017::OnGenPowerChanged(bool active)
-{
-    qDebug() << "[GPIO] GEN_POWER changed =" << active;
-}
-
-void Mcp23017::OnGen1RfOnChanged(bool active)
-{
-    qDebug() << "[GPIO] GEN1_RF_ON changed =" << active;
-}
-
-void Mcp23017::OnGen1IlkEnChanged(bool active)
-{
-    qDebug() << "[GPIO] GEN1_ILK_EN changed =" << active;
-}
-
-void Mcp23017::OnPurgeChanged(bool active)
-{
-    qDebug() << "[GPIO] PURGE changed =" << active;
-}
-
-void Mcp23017::OnIsolationChanged(bool active)
-{
-    qDebug() << "[GPIO] ISOLATION changed =" << active;
-}
+void Mcp23017::OnGenPowerChanged(bool active)    { qDebug() << "[GPIO] GEN_POWER changed =" << active; }
+void Mcp23017::OnGen1RfOnChanged(bool active)    { qDebug() << "[GPIO] GEN1_RF_ON changed =" << active; }
+void Mcp23017::OnGen1IlkEnChanged(bool active)   { qDebug() << "[GPIO] GEN1_ILK_EN changed =" << active; }
+void Mcp23017::OnPurgeChanged(bool active)       { qDebug() << "[GPIO] PURGE changed =" << active; }
+void Mcp23017::OnIsolationChanged(bool active)   { qDebug() << "[GPIO] ISOLATION changed =" << active; }
