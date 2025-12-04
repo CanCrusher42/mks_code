@@ -143,6 +143,7 @@ mks_pid::mks_pid(QObject *parent) : QObject(parent)
     i2c_init();
 
     i2c_write_dac(0x300);
+    dacUpdateCounter = 0;
     //i2c_write(0x60,01,03);
 }
 
@@ -381,18 +382,36 @@ void mks_pid::UpdateDac()
        {
         dacValue = (uint16_t)round(mks_setting.pressure/10.00 * (MAX_DAC-1));
       }
-    //float press = (int)round(mks_setting.pressure/1000 * MAX_DAC);
-    qDebug()<<"Press = "<<mks_setting.pressure<<"  Dac =  "<<  dacValue << " Angle = "<<mks_setting.angle;
+
+    if (dacValue != lastDac)
+        qDebug()<<"* Press = "<<mks_setting.pressure<<"  Dac =  "<<  dacValue << " Angle = "<<mks_setting.angle;
+    else if ((dacUpdateCounter++ % 0x40)==0)
+        qDebug()<<"Press = "<<mks_setting.pressure<<"  Dac =  "<<  dacValue << " Angle = "<<mks_setting.angle;
     i2c_write_dac(dacValue);
+    lastDac = dacValue;
 
 }
+void mks_pid::UpdatePressureSwitches()
+{
+    /*
+    gpio->SetVac1Ilk((int)(mks_setting.pressure < 600));
+
+    if ( mks_setting.pressure 300 ) {
+        pressureSwitch2 = 0;
+    } else  {
+        pressureSwitch2 = 1;
+    }*/
+}
+
 void mks_pid::UpdatePressure()
 {
+   UpdatePressureSwitches();
 }
 
 void mks_pid::UpdateSimulation()
 {
    UpdatePressure();
+
    UpdateDac();
 }
 

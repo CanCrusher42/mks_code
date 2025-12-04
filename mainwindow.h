@@ -39,6 +39,7 @@ private:
     QTimer *mcpTimer;
     QTimer *chamberTimer;
 
+public:
     VacuumChamber *chamber;
     Mcp23017 *gpio ;
     mks_pid *mks;

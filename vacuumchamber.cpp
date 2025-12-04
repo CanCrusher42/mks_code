@@ -1,3 +1,4 @@
+#include "mcp23017.h"
 #include "vacuumchamber.h"
 #include <cmath>
 
@@ -15,8 +16,9 @@ static const double FIXED_DT = 0.2;
 // -----------------------------------------------------------------------------
 // Constructor
 // -----------------------------------------------------------------------------
-VacuumChamber::VacuumChamber(QObject *parent)
+VacuumChamber::VacuumChamber(QObject *parent, Mcp23017 *gpio)
     : QObject(parent),
+      m_gpio(gpio),
       m_pressure_mT(P_MAX),
       m_valveAngle(10.0),
       m_isoValveOpen(false),
@@ -25,6 +27,7 @@ VacuumChamber::VacuumChamber(QObject *parent)
       m_purge(false),
       m_purgeRate_mTps(50000.0),
       m_leakFactor(0.08)   // <-- NEW (5% default leak)
+
 {
 }
 
@@ -140,6 +143,8 @@ void VacuumChamber::update()
         m_pressure_mT += leakRate * dt;
         m_pressure_mT = clampd(m_pressure_mT, P_MIN, P_MAX);
 
+
+
         emit pressureChanged_mT(m_pressure_mT);
         emit pressureChanged_Torr(currentPressure_Torr());
         emit pressureChanged_Volts(pressureVolts());
@@ -233,4 +238,8 @@ void VacuumChamber::update()
     emit pressureChanged_mT(m_pressure_mT);
     emit pressureChanged_Torr(currentPressure_Torr());
     emit pressureChanged_Volts(pressureVolts());
+
+    m_gpio->SetVac1Ilk(currentPressure_Torr()< 600);
+    m_gpio->SetVac1Ilk(currentPressure_Torr()< 200);
+
 }

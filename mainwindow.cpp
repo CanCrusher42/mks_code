@@ -27,7 +27,7 @@ MainWindow::MainWindow(QWidget *parent)
 
 #define CHAMBER
 #ifdef CHAMBER
-    chamber = new VacuumChamber(this);
+    chamber = new VacuumChamber(this,gpio);
 
     // optional: initialize
     chamber->setStartPressure_Torr(700);
@@ -38,9 +38,7 @@ MainWindow::MainWindow(QWidget *parent)
 
     // Create and start the 200ms simulation timer
     chamberTimer = new QTimer(this);
-    connect(chamberTimer, SIGNAL(timeout()),
-            chamber,       SLOT(update()));
-
+    connect(chamberTimer, SIGNAL(timeout()), chamber,  SLOT(update()));
     chamberTimer->start(200);
 #endif
 
@@ -66,7 +64,7 @@ MainWindow::MainWindow(QWidget *parent)
 #endif
 #ifdef VERITY
     connect(verTimer, SIGNAL(timeout()), ver, SLOT(VerityCheck()));
-    //verTimer->start(250);
+    verTimer->start(250);
 #endif
 }
 

@@ -3,12 +3,14 @@
 #include <QDebug>
 #include <QObject>
 
+class Mcp23017;
+
 class VacuumChamber : public QObject
 {
     Q_OBJECT
 
 public:
-    explicit VacuumChamber(QObject *parent = nullptr);
+    explicit VacuumChamber(QObject *parent = nullptr, Mcp23017 *gpio = nullptr);
 
     // Getters
     double currentPressure_mT() const;
@@ -18,6 +20,8 @@ public:
     // Vacuum Interlocks
     bool vacuumInterlock1() const;   // TRUE if < 600 Torr
     bool vacuumInterlock2() const;   // TRUE if < 100 Torr
+
+    Mcp23017 *m_gpio;
 
 public slots:
     // Setters
@@ -41,6 +45,8 @@ signals:
     void pressureChanged_mT(double newPressure);
     void pressureChanged_Torr(double newPressure);
     void pressureChanged_Volts(double volts);
+
+
 
 private:
     // Replacement for std::clamp (Qt4 safe)

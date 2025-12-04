@@ -75,6 +75,9 @@ private:
         QString response;
         struct mks_struct mks_setting;
         struct _simPid simPid;
+        uint16_t lastDac;
+        uint16_t dacUpdateCounter;
+        void UpdatePressureSwitches();
 };
 
 #endif // MKS_PID_H
