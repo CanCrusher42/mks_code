@@ -240,6 +240,6 @@ void VacuumChamber::update()
     emit pressureChanged_Volts(pressureVolts());
 
     m_gpio->SetVac1Ilk(currentPressure_Torr()< 600);
-    m_gpio->SetVac1Ilk(currentPressure_Torr()< 200);
+    m_gpio->SetVac2Ilk(currentPressure_Torr()< 200);
 
 }

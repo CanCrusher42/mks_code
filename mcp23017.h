@@ -73,7 +73,8 @@ public:
 
     int Init();
     void PollInputs();
-
+    void PrintPortA(void);
+    void PrintPortB(void);
 public slots:
     void GpioSimulation();
 

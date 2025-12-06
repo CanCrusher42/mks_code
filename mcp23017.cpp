@@ -119,10 +119,19 @@ void Mcp23017::GpioSimulation()
 // ===============================================================
 void Mcp23017::EvaluateFrmGen0Ilk(uint8_t portB)
 {
+    static int cnt = 0;
     bool genPower = (portB & B4_GEN_POWER_MASK);
     bool genIlkEn = (portB & B3_GEN1_ILK_EN_MASK);
 
-    bool outputState = (genPower && genIlkEn);
+    bool outputState = !(genPower && genIlkEn);
+//    if (!outputState)
+//        qDebug()<<"GenIlk Set";
+    if ((cnt++ % 16)==0)
+    {
+        PrintPortA();
+        PrintPortB();
+    }
+    //SetFrmGen0Ilk(true);
     SetFrmGen0Ilk(outputState);
 }
 
@@ -193,3 +202,26 @@ void Mcp23017::OnGen1RfOnChanged(bool active)    { qDebug() << "[GPIO] GEN1_RF_O
 void Mcp23017::OnGen1IlkEnChanged(bool active)   { qDebug() << "[GPIO] GEN1_ILK_EN changed =" << active; }
 void Mcp23017::OnPurgeChanged(bool active)       { qDebug() << "[GPIO] PURGE changed =" << active; }
 void Mcp23017::OnIsolationChanged(bool active)   { qDebug() << "[GPIO] ISOLATION changed =" << active; }
+
+void Mcp23017::PrintPortA()
+{
+   int a =  GetPortA();
+   qDebug()<<"PortA = 0x" << Qt::hex << a;
+   qDebug()<<"DOOR = "<< ((a>>A0_DOOR_ILK_BIT) & 1);
+   qDebug()<<"AIR  = "<< ((a>>A1_AIR_ILK_BIT) & 1);
+   qDebug()<<"VAC1 = "<< ((a>>A2_VAC1_ILK_BIT) & 1);
+   qDebug()<<"VAC2  = "<< ((a>>A3_VAC2_ILK_BIT) & 1);
+   qDebug()<<"GEN0ILK  = "<< ((a>>A4_FRM_GEN0_ILK_BIT) & 1);
+}
+
+void Mcp23017::PrintPortB()
+{
+   uint16_t b = GetPortB();
+   qDebug()<<"PortB = 0x" << Qt::hex << b;
+   qDebug()<<"  Purge = "<<((b >> B0_PURGE_BIT) & 1);
+   qDebug()<<"  Iso   = "<<((b >> B1_ISOLATION_BIT) & 1);
+   qDebug()<<"  GEN_RF_ON = "<<((b >> B2_GEN1_RF_ON_BIT) & 1);
+   qDebug()<<"  GEN ILK   = "<<((b >> B3_GEN1_ILK_EN_BIT) & 1);
+   qDebug()<<"  GEN PWR   = "<<((b >> B4_GEN_POWER_BIT) & 1);
+
+}

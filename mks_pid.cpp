@@ -352,6 +352,8 @@ void mks_pid::initValues(void)
     {
         qCritical()<< "ERROR: OPENING TVC SERIAL PORT";
 
+    } else {
+        qDebug()<<"Opened Serial Port in mks_pid::initValues() ";
     }
 
 }
@@ -473,7 +475,7 @@ bool mks_pid::ProcessNewIdealCommand(QString command)
     rspCmd.clear();
 
     if (!command.contains("pos"))
-    //qDebug()<<"Ideal Cmd:"<<command;
+        qDebug()<<"Ideal Cmd:"<<command;
 
     command.remove("\n");
     command.remove("\r");

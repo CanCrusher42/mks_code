@@ -31,8 +31,8 @@ VeritySim::VeritySim(QObject *parent) : QObject(parent)
         sp = new SerialPort(this);
         //Bus 001 Device 005: ID 0403:6001 Future Technology Devices International, Ltd FT232 Serial (UART) IC
         // This is the Null Modem Cable with yellow stipe
-        //int good = sp->Open(QString("0403"),QString("6001"),(QSerialPort::BaudRate)QSerialPort::Baud9600);
-        int good = sp->Open(QString("0403"),QString("6001"),(QSerialPort::BaudRate)QSerialPort::Baud19200);
+        int good = sp->Open(QString("0403"),QString("6001"),(QSerialPort::BaudRate)QSerialPort::Baud9600);
+        //int good = sp->Open(QString("0403"),QString("6001"),(QSerialPort::BaudRate)QSerialPort::Baud19200);
         if (good!= 0)
         {
             qCritical()<< "ERROR: OPENING SERIAL PORT";
