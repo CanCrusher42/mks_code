@@ -109,6 +109,11 @@ int i2c_read(u8 slave_addr, u8 reg, u8 *result) {
 
 int i2c_write_dac(uint16_t dac)
 {
+    if (dac == 0)
+    {
+        int a = dac;
+        dac = a;
+    }
     return i2c_write(0x60, (dac>>8 & 0xF), (dac & 0xFF) );
 
 }
@@ -387,8 +392,10 @@ void mks_pid::UpdateDac()
 
     if (dacValue != lastDac)
         qDebug()<<"* Press = "<<mks_setting.pressure<<"  Dac =  "<<  dacValue << " Angle = "<<mks_setting.angle;
-    else if ((dacUpdateCounter++ % 0x40)==0)
+    else if ((dacUpdateCounter++ % 0x10)==0)
         qDebug()<<"Press = "<<mks_setting.pressure<<"  Dac =  "<<  dacValue << " Angle = "<<mks_setting.angle;
+
+
     i2c_write_dac(dacValue);
     lastDac = dacValue;
 
@@ -426,7 +433,7 @@ void mks_pid::ProcessNewTvsCommand()
 
    QString cmd,rsp;
 
-   //qDebug()<<"PROCESS";
+   qDebug()<<"PROCESS";
    len1 = sp->PeekCr(50);
    if (len1>0)
    {
@@ -440,7 +447,7 @@ void mks_pid::ProcessNewTvsCommand()
 
    int cr = commandBuffer.indexOf('\r');
    if (cr>=0) {
-     //  qDebug()<<"ADDING CMD "<<len1;
+       qDebug()<<"ADDING CMD "<<len1;
        cmdQueue.append(commandBuffer.left(cr+1));
        commandBuffer.remove(0,cr+1);
    }
@@ -490,32 +497,43 @@ bool mks_pid::ProcessNewIdealCommand(QString command)
     {
         mks_setting.angle = 90.0;
         emit AngleChanged((double)90.0);
-
+        rspCmd = "0";
+        rspCmd.append('\r');
 
     } else
     if (command.contains("close",  Qt::CaseInsensitive))
     {
         mks_setting.angle = 0.0;
         emit AngleChanged((double)0.0);
+        rspCmd = "0";
+        rspCmd.append('\r');
 
      } else
     if (command.contains("ang",  Qt::CaseInsensitive))
-        {
-            QString angString = command.mid(command.indexOf("ang")+4);
-         //   qDebug()<<"ANGLE STRING "<<angString;
-            bool ok;
-            double ang = angString.toDouble((&ok));
+    {
+        QString angString = command.mid(command.indexOf("ang")+4);
+     //   qDebug()<<"ANGLE STRING "<<angString;
+        bool ok;
+        double ang = angString.toDouble((&ok));
 
-            if (ok) {
-           //     qDebug()<<"NEW ANGLE"<<ang;
-                mks_setting.angle = ang;
-                emit AngleChanged(ang);
-            } else
-
-            {
-                qDebug()<< " ---- ERROR Bad Angle in command"<<command;
-            }
+        if (ok) {
+       //     qDebug()<<"NEW ANGLE"<<ang;
+            mks_setting.angle = ang;
+            emit AngleChanged(ang);
+            rspCmd = "0";
+            rspCmd.append('\r');
         } else
+
+        {
+            qDebug()<< " ---- ERROR Bad Angle in command"<<command;
+        }
+    } else
+    if (command.contains("rst",  Qt::CaseInsensitive))
+    {
+        qDebug()<<"RESET";
+        rspCmd = "0";
+        rspCmd.append('\r');
+    } else
     {
         qDebug()<<"---------- ERROR:: UNKNOWN IDEAL COMMAND ----- "<<command;
     }

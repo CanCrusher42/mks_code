@@ -75,29 +75,40 @@ int Mcp23017::Init()
 void Mcp23017::PollInputs()
 {
     uint8_t portB = 0;
+    uint8_t portA = 0;
     if (i2c_read(addr, GPIOB, &portB) != 0)
         return;
+//    if (i2c_read(addr, GPIOA, &portA) != 0)
+//        return;
 
     uint8_t changed = portB ^ m_lastPortBState;
-    if (!changed)
-        return;
+    if (changed) {
+  //      PrintPortB();
+        if (changed & B0_PURGE_MASK)
+            emit PurgeChanged(portB & B0_PURGE_MASK);
 
-    if (changed & B0_PURGE_MASK)
-        emit PurgeChanged(portB & B0_PURGE_MASK);
+        if (changed & B1_ISOLATION_MASK)
+            emit IsolationChanged(portB & B1_ISOLATION_MASK);
 
-    if (changed & B1_ISOLATION_MASK)
-        emit IsolationChanged(portB & B1_ISOLATION_MASK);
+        if (changed & B2_GEN1_RF_ON_MASK)
+            emit Gen1RfOnChanged(portB & B2_GEN1_RF_ON_MASK);
 
-    if (changed & B2_GEN1_RF_ON_MASK)
-        emit Gen1RfOnChanged(portB & B2_GEN1_RF_ON_MASK);
+        if (changed & B3_GEN1_ILK_EN_MASK)
+            emit Gen1IlkEnChanged(portB & B3_GEN1_ILK_EN_MASK);
 
-    if (changed & B3_GEN1_ILK_EN_MASK)
-        emit Gen1IlkEnChanged(portB & B3_GEN1_ILK_EN_MASK);
+        if (changed & B4_GEN_POWER_MASK)
+            emit GenPowerChanged(portB & B4_GEN_POWER_MASK);
 
-    if (changed & B4_GEN_POWER_MASK)
-        emit GenPowerChanged(portB & B4_GEN_POWER_MASK);
+        m_lastPortBState = portB;
+    }
 
-    m_lastPortBState = portB;
+/*
+    changed = (portA ^ m_lastPortAState) & PORTA_INPUT_MASK;
+    if (changed) {
+        PrintPortA();
+        m_lastPortAState = portA;
+    } */
+
 }
 
 // ===============================================================
@@ -126,13 +137,13 @@ void Mcp23017::EvaluateFrmGen0Ilk(uint8_t portB)
     bool outputState = !(genPower && genIlkEn);
 //    if (!outputState)
 //        qDebug()<<"GenIlk Set";
-    if ((cnt++ % 16)==0)
+    if ((cnt++ % 50)==0)
     {
-        PrintPortA();
-        PrintPortB();
+//        PrintPortA();
+//        PrintPortB();
     }
     //SetFrmGen0Ilk(true);
-    SetFrmGen0Ilk(outputState);
+//   SetFrmGen0Ilk(outputState);
 }
 
 // ===============================================================
@@ -207,11 +218,11 @@ void Mcp23017::PrintPortA()
 {
    int a =  GetPortA();
    qDebug()<<"PortA = 0x" << Qt::hex << a;
-   qDebug()<<"DOOR = "<< ((a>>A0_DOOR_ILK_BIT) & 1);
-   qDebug()<<"AIR  = "<< ((a>>A1_AIR_ILK_BIT) & 1);
-   qDebug()<<"VAC1 = "<< ((a>>A2_VAC1_ILK_BIT) & 1);
-   qDebug()<<"VAC2  = "<< ((a>>A3_VAC2_ILK_BIT) & 1);
-   qDebug()<<"GEN0ILK  = "<< ((a>>A4_FRM_GEN0_ILK_BIT) & 1);
+   qDebug()<<"  DOOR = "<< ((a>>A0_DOOR_ILK_BIT) & 1);
+   qDebug()<<"  AIR  = "<< ((a>>A1_AIR_ILK_BIT) & 1);
+   qDebug()<<"  VAC1 = "<< ((a>>A2_VAC1_ILK_BIT) & 1);
+   qDebug()<<"  VAC2  = "<< ((a>>A3_VAC2_ILK_BIT) & 1);
+   qDebug()<<"  GEN0ILK  = "<< ((a>>A4_FRM_GEN0_ILK_BIT) & 1);
 }
 
 void Mcp23017::PrintPortB()

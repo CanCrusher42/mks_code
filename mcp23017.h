@@ -45,22 +45,24 @@
 // PORT A OUTPUT BIT DEFINITIONS (updated)
 // ===============================================================
 #define A0_DOOR_ILK_BIT        0
-#define A0_DOOR_ILK_MASK       (1u << A0_DOOR_ILK_BIT)
-
 #define A1_AIR_ILK_BIT         1
-#define A1_AIR_ILK_MASK        (1u << A1_AIR_ILK_BIT)
-
 #define A2_VAC1_ILK_BIT        2
-#define A2_VAC1_ILK_MASK       (1u << A2_VAC1_ILK_BIT)
-
 #define A3_VAC2_ILK_BIT        3
-#define A3_VAC2_ILK_MASK       (1u << A3_VAC2_ILK_BIT)
-
-// *** ORIGINAL OUTPUT MOVED TO A4 ***
 #define A4_FRM_GEN0_ILK_BIT    4
+
+
+#define A0_DOOR_ILK_MASK       (1u << A0_DOOR_ILK_BIT)
+#define A1_AIR_ILK_MASK        (1u << A1_AIR_ILK_BIT)
+#define A2_VAC1_ILK_MASK       (1u << A2_VAC1_ILK_BIT)
+#define A3_VAC2_ILK_MASK       (1u << A3_VAC2_ILK_BIT)
 #define A4_FRM_GEN0_ILK_MASK   (1u << A4_FRM_GEN0_ILK_BIT)
 
-
+#define PORTA_INPUT_MASK ( \
+    A0_DOOR_ILK_MASK  | \
+    A1_AIR_ILK_MASK   | \
+    A2_VAC1_ILK_MASK  | \
+    A3_VAC2_ILK_MASK  | \
+    A4_FRM_GEN0_ILK_MASK )
 // ===============================================================
 // MCP23017 CLASS
 // ===============================================================
@@ -119,6 +121,7 @@ signals:
 
 private:
     uint8_t addr;
+    uint8_t m_lastPortAState;
     uint8_t m_lastPortBState;
 
     void EvaluateFrmGen0Ilk(uint8_t portB);

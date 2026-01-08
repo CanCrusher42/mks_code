@@ -73,7 +73,10 @@ int  SerialPort::Open(const QString vid,const QString pid, QSerialPort::BaudRate
     qDebug()<<" Vid="<<vid<<" pid="<<pid<<" PortName="<<portName<< " Rate:"<<BaudRate;
     if (!serial->open(QIODevice::ReadWrite)) {
         qCritical() << "Error opening serial port:" <<  serial->errorString();
+    } else {
+        qDebug()<<"OPening VER Serial Port is good "<<portName;
     }
+
     connect(serial, &QSerialPort::readyRead,
             this, &SerialPort::onReadyRead);
 
@@ -159,7 +162,7 @@ void SerialPort::onReadyRead()
 
 void SerialPort::Write()
 {
-       serial->write("ABC\n");
+       serial->write("A\n");
 }
 
 void SerialPort::Write(uint8_t c)

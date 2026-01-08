@@ -12,6 +12,7 @@ static const double ILK2_THRESHOLD_mT = 100000.0; // < 100 Torr
 
 // Fixed timestep for simulation: 200 ms
 static const double FIXED_DT = 0.2;
+static double limitLowPressureDelta(double previous_mT, double new_mT);
 
 // -----------------------------------------------------------------------------
 // Constructor
@@ -131,39 +132,44 @@ double VacuumChamber::pressureVolts() const
 void VacuumChamber::update()
 {
     const double dt = FIXED_DT;
+    static double lastValveFactor = 33;
 
+    // -------------------------------------------------------------------------
+    // ISOLATION VALVE CLOSED → leak-back only
+    // -------------------------------------------------------------------------
     if (!m_isoValveOpen)
     {
-        // ---------------------------------------------------------
-        // LEAK-BACK STILL OCCURS even with isolation closed
-        // ---------------------------------------------------------
-        double fullDropRate = (P_MAX - P_MIN) / 60.0;  // matches pump model
+
+        double fullDropRate = (P_MAX - P_MIN) / 60.0;
         double leakRate = fullDropRate * m_leakFactor;
 
-        m_pressure_mT += leakRate * dt;
+        double before = m_pressure_mT;
+        double after  = before + leakRate * dt;
+
+        // Apply low-pressure delta limit
+        m_pressure_mT = limitLowPressureDelta(before, after);
+
         m_pressure_mT = clampd(m_pressure_mT, P_MIN, P_MAX);
-
-
 
         emit pressureChanged_mT(m_pressure_mT);
         emit pressureChanged_Torr(currentPressure_Torr());
         emit pressureChanged_Volts(pressureVolts());
-
         return;
     }
 
     // -------------------------------------------------------------------------
-    // PURGE MODE → pressure increases
+    // PURGE MODE
     // -------------------------------------------------------------------------
     if (m_purge)
     {
-        qDebug()<<"Updating Prs with PURGE";
-        m_pressure_mT += (m_purgeRate_mTps * dt);
-
-        // --- LEAK-BACK ALSO APPLIES HERE ---
+        qDebug()<<"P";
         double fullDropRate = (P_MAX - P_MIN) / 60.0;
         double leakRate = fullDropRate * m_leakFactor;
-        m_pressure_mT += leakRate * dt;
+
+        double before = m_pressure_mT;
+        double after  = before + (m_purgeRate_mTps * dt) + (leakRate * dt);
+
+        m_pressure_mT = limitLowPressureDelta(before, after);
 
         m_pressure_mT = clampd(m_pressure_mT, P_MIN, P_MAX);
 
@@ -174,16 +180,16 @@ void VacuumChamber::update()
     }
 
     // -------------------------------------------------------------------------
-    // PUMP-DOWN MODE → pressure decreases
+    // PUMP-DOWN MODE
     // -------------------------------------------------------------------------
-    // -------------------------------------------------------------------------
-    // PUMP-DOWN MODE → pressure decreases
-    // -------------------------------------------------------------------------
-    double valveFactor =
-            clampd((m_valveAngle - 10.0) / (90.0 - 10.0), 0.0, 1.0);
+    double valveFactor = clampd((m_valveAngle - 10.0) / (90.0 - 10.0), 0.0, 1.0);
+    lastValveFactor = valveFactor;
+
+    double beforePump = m_pressure_mT;
 
     if (valveFactor > 0.0)
     {
+  //      qDebug()<<"*";
         double pressureNorm =
             clampd((m_pressure_mT - P_MIN) / (P_MAX - P_MIN), 0.0, 1.0);
 
@@ -199,17 +205,14 @@ void VacuumChamber::update()
             m_speed *
             pressureFactor;
 
-        // Faster pump down from atmosphere
         if (m_pressure_mT > 5000.0)
             effectiveRate *= 4.0;
 
-        // --- Extra inertia below 1 Torr (1000 mT) ---
         if (m_pressure_mT < 1000.0)
         {
             double lowPScale =
                 clampd((m_pressure_mT - P_MIN) / (1000.0 - P_MIN), 0.0, 1.0);
 
-            // 1.0 at 1T, down to ~0.25 near base pressure
             double inertiaScale = 0.25 + 0.75 * lowPScale;
             effectiveRate *= inertiaScale;
         }
@@ -217,29 +220,52 @@ void VacuumChamber::update()
         m_pressure_mT -= effectiveRate * dt;
     }
 
-
     // -------------------------------------------------------------------------
     // LEAK-BACK ALWAYS ACTIVE
     // -------------------------------------------------------------------------
     double fullDropRate = (P_MAX - P_MIN) / 60.0;
-
     double leakRate = fullDropRate * m_leakFactor;
-    // --- Extra inertia below 1 Torr (1000 mT) ---
+//        qDebug()<<"#";
     if (m_pressure_mT < 1000.0)
-    {
         leakRate *= 0.02;
-    }
-    m_pressure_mT += leakRate * dt;
+
+    double before = beforePump;
+    double after  = m_pressure_mT + leakRate * dt;
+
+    // Apply low-pressure delta limit
+    m_pressure_mT = limitLowPressureDelta(before, after);
 
     m_pressure_mT = clampd(m_pressure_mT, P_MIN, P_MAX);
-
-   // qDebug()<<"P="<<m_pressure_mT<<"  "<<currentPressure_Torr();
 
     emit pressureChanged_mT(m_pressure_mT);
     emit pressureChanged_Torr(currentPressure_Torr());
     emit pressureChanged_Volts(pressureVolts());
 
-    m_gpio->SetVac1Ilk(currentPressure_Torr()< 600);
-    m_gpio->SetVac2Ilk(currentPressure_Torr()< 200);
+    m_gpio->SetVac1Ilk(currentPressure_Torr() < 600);
+    m_gpio->SetVac2Ilk(currentPressure_Torr() < 200);
+}
 
+
+
+// -----------------------------------------------------------------------------
+// Helper: limitLowPressureDelta
+// Limits pressure change when below 10 Torr (10,000 mT).
+// Maximum allowed change per update = 10% of the previous pressure.
+// -----------------------------------------------------------------------------
+static double limitLowPressureDelta(double previous_mT, double new_mT)
+{
+    // Only limit when previous pressure < 10 Torr = 10,000 mT
+    if (previous_mT >= 10000.0)
+        return new_mT;
+
+    double maxDelta = previous_mT * 0.10;   // 10% limit
+    double delta    = new_mT - previous_mT;
+
+    if (delta > maxDelta)
+        return previous_mT + maxDelta;
+
+    if (delta < -maxDelta)
+        return previous_mT - maxDelta;
+
+    return new_mT;
 }

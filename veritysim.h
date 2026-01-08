@@ -11,6 +11,7 @@ class VeritySim : public QObject
 public:
     explicit VeritySim(QObject *parent = nullptr);
 
+    int trigger1;
 public slots:
     void VerityCheck(void);
     void on_Event(void);

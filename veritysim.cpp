@@ -37,6 +37,9 @@ VeritySim::VeritySim(QObject *parent) : QObject(parent)
         {
             qCritical()<< "ERROR: OPENING SERIAL PORT";
 
+        } else
+        {
+            qDebug()<<"VER SERIAL PORT ISOPEN";
         }
         eventTimer = new QTimer(this);
         eventTimer->setSingleShot(true);
@@ -48,28 +51,31 @@ VeritySim::VeritySim(QObject *parent) : QObject(parent)
         connect(dataTimer, SIGNAL(timeout()), this, SLOT(on_DataTimer()));
         //initValues();
 
-
+    trigger1 = 0;
 }
 
 
 void VeritySim::on_Event()
 {
-   // i//sp->Write("EVENT\r");
+    qDebug()<<"SENDING EP";
+   sp->Write("ENDP\r");
 }
 
 void VeritySim::on_DataTimer()
 {
-
-
-    QString data = QString("%1").arg(data1, 11, 'f', 4, QChar('0'));
+    data1 = data1+10.0;
+    data2 = data2+20.0;
+        //trend[0][^sp]+000490.40000, +000590.40000[^CR]
+    QString data = QString("%1, -%2").arg(data1, 11, 'f', 4, QChar('0')).arg(data2, 11, 'f', 4, QChar('0'));
     data.prepend("trend[0] ");
     data.append('\r');
     sp->Write(data);
-    data1 = data1+ 0.3333;
-    data2 =  data2+ 0.8;;
 }
+
+
 int VeritySim::ProcessTst()
 {
+    qDebug()<<"Sending ACK_test";
     sp->Write("ACK_tst\r");
     return 0;
 
@@ -77,7 +83,7 @@ int VeritySim::ProcessTst()
 
 int VeritySim::ProcessStop()
 {
-
+    qDebug()<<"Process Stop Command";
     StopTimers();
     sp->Write("ACK_stop\r");
     sp->Write("RDY\r");
@@ -87,6 +93,7 @@ int VeritySim::ProcessStop()
 
 int VeritySim::ProcessStart()
 {
+    qDebug()<<"SENDING BACK 3 COMMANDS";
     sp->Write("ACK_start\r");
     sp->Write("run\r");
     sp->Write("NOTrdy\r");
@@ -96,7 +103,7 @@ int VeritySim::ProcessStart()
            dataTimer->start();
     }
 
-    eventTimer->start(5000);
+    eventTimer->start(14000);
     return 0;
 }
 
@@ -118,25 +125,33 @@ int VeritySim::ProcessRst()
 
 int VeritySim::ProcessNewToken(QString & token)
 {
-    if ( token.contains("tst\r") )
+    //token.remove(' ');
+    token.remove('\r');
+    token.remove('\n');
+
+    if ( token.contains("tst") || token.contains("test"))
     {
+        qDebug()<<"PROCESSING TST";
             ProcessTst();
     }
-    else if ( token.contains("stop\r") )
+    else if ( token.contains("stop") )
     {
             ProcessStop();
     }
-    else if ( token.contains("rst\r") )
+    else if ( token.contains("rst") )
     {
             ProcessRst();
     }
-    else if ( token.contains("start[] ") )
+    else if ( token.contains("start[]") )
     {
             ProcessStart();
     }
     else if ( token.contains("wafer[lot] ") )
     {
             ProcessWafer();
+    } else
+    {
+        qDebug()<<"UNKNOWN Verity Token"<< token;
     }
 return 0;
 
@@ -150,6 +165,7 @@ QString VeritySim::NewTokenAvail(void)
     int tokenSize = sp->ReadCr(100, newCmd, &len );
 
     if (0 < tokenSize) {
+        trigger1 = 1;
         QByteArray tmp(newCmd, tokenSize);
         tmp.append('\0');          // ensure null termination
 
@@ -161,11 +177,10 @@ QString VeritySim::NewTokenAvail(void)
 
 void VeritySim::VerityCheck(void)
 {
-    //qDebug()<<"VER: = ";
     QString newToken = NewTokenAvail();
     if (newToken.size()>0)
     {
-        qDebug()<<"VER TOKEN: = "<<newToken;
+        qDebug()<<"\n\n------------------------- VER TOKEN: = "<<newToken;
         ProcessNewToken(newToken);
     }
 }
