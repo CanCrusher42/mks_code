@@ -433,7 +433,7 @@ void mks_pid::ProcessNewTvsCommand()
 
    QString cmd,rsp;
 
-   qDebug()<<"PROCESS";
+ // qDebug()<<"PROCESS MKS";
    len1 = sp->PeekCr(50);
    if (len1>0)
    {
@@ -447,7 +447,7 @@ void mks_pid::ProcessNewTvsCommand()
 
    int cr = commandBuffer.indexOf('\r');
    if (cr>=0) {
-       qDebug()<<"ADDING CMD "<<len1;
+     //  qDebug()<<"ADDING CMD "<<commandBuffer.left(cr+1);
        cmdQueue.append(commandBuffer.left(cr+1));
        commandBuffer.remove(0,cr+1);
    }

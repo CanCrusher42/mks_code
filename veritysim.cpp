@@ -9,8 +9,8 @@ Command                            Response
 wafer[lot][^sp]111222[^CR]       ACK_wfr[Lot][^CR][^NUL]
 start[][^sp]Config_name[^cr]     ACK_start[^CR]run[^CR]NOTrdy[^CR]
 start Data Stream                       ACK_data  ?? Part of the config file
-stop[^CR]                                    ACK_stop[^CR]RDY[^CR]
-rst[^CR]                                      ACK_reset[^CR]RDY[^CR]
+stop[^CR]                                    ACK_stop[^CR]rdy[^CR]
+rst[^CR]                                      ACK_reset[^CR]rdy[^CR]
 tst [^CR]                                      ACK_test[^CR]
 
 Events                                Value?
@@ -86,7 +86,7 @@ int VeritySim::ProcessStop()
     qDebug()<<"Process Stop Command";
     StopTimers();
     sp->Write("ACK_stop\r");
-    sp->Write("RDY\r");
+    sp->Write("rdy\r");
     return 0;
 }
 
@@ -119,7 +119,7 @@ int VeritySim::ProcessRst()
 {
     StopTimers();
     sp->Write("ACK_rst\r");
-    sp->Write("RDY\r");
+    sp->Write("rdy\r");
     return 0;
 }
 

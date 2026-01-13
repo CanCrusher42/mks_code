@@ -30,6 +30,8 @@ int Mcp23017::Init()
     connect(this, SIGNAL(Gen1RfOnChanged(bool)),    this, SLOT(OnGen1RfOnChanged(bool)));
     connect(this, SIGNAL(Gen1IlkEnChanged(bool)),   this, SLOT(OnGen1IlkEnChanged(bool)));
     connect(this, SIGNAL(GenPowerChanged(bool)),    this, SLOT(OnGenPowerChanged(bool)));
+    connect(this, SIGNAL(TmpPowerEnInChanged(bool)),this, SLOT(onTmpPowerEnInChanged(bool)));
+
 
     // Disable sequential addressing
     result = i2c_write(addr, IOCON, 0x20);
@@ -46,7 +48,8 @@ int Mcp23017::Init()
             A0_DOOR_ILK_MASK |
             A1_AIR_ILK_MASK  |
             A2_VAC1_ILK_MASK |
-            A3_VAC2_ILK_MASK;
+            A3_VAC2_ILK_MASK |
+            A7_TMP_PWR_EN_OUT_MASK;
 
     result += i2c_write(addr, OLATA, initialA);
 
@@ -78,8 +81,6 @@ void Mcp23017::PollInputs()
     uint8_t portA = 0;
     if (i2c_read(addr, GPIOB, &portB) != 0)
         return;
-//    if (i2c_read(addr, GPIOA, &portA) != 0)
-//        return;
 
     uint8_t changed = portB ^ m_lastPortBState;
     if (changed) {
@@ -98,6 +99,9 @@ void Mcp23017::PollInputs()
 
         if (changed & B4_GEN_POWER_MASK)
             emit GenPowerChanged(portB & B4_GEN_POWER_MASK);
+
+        if (changed & B7_TMP_PWR_EN_IN_MASK)
+            emit TmpPowerEnInChanged(portB & B7_TMP_PWR_EN_IN_MASK);
 
         m_lastPortBState = portB;
     }
@@ -173,12 +177,13 @@ void Mcp23017::SetDoorIlk(bool active)     { writePortA(addr, A0_DOOR_ILK_MASK, 
 void Mcp23017::SetAirIlk(bool active)      { writePortA(addr, A1_AIR_ILK_MASK, active); }
 void Mcp23017::SetVac1Ilk(bool active)     { writePortA(addr, A2_VAC1_ILK_MASK, active); }
 void Mcp23017::SetVac2Ilk(bool active)     { writePortA(addr, A3_VAC2_ILK_MASK, active); }
+void Mcp23017::SetTmpPowerEnOut(bool active)  { writePortA(addr, A7_TMP_PWR_EN_OUT_MASK, active); }
 
 bool Mcp23017::GetDoorIlk()                { return GetPortA() & A0_DOOR_ILK_MASK; }
 bool Mcp23017::GetAirIlk()                 { return GetPortA() & A1_AIR_ILK_MASK; }
 bool Mcp23017::GetVac1Ilk()                { return GetPortA() & A2_VAC1_ILK_MASK; }
 bool Mcp23017::GetVac2Ilk()                { return GetPortA() & A3_VAC2_ILK_MASK; }
-
+//bool Mcp23017::GetTmpPowerEn()             { return GetPortA() & A7_TMP_PWR_EN_MASK; }
 // ===============================================================
 // Port Getters
 // ===============================================================
@@ -204,6 +209,7 @@ bool Mcp23017::GetIsolation()    { return GetPortB() & B1_ISOLATION_MASK; }
 bool Mcp23017::GetGen1RfOn()     { return GetPortB() & B2_GEN1_RF_ON_MASK; }
 bool Mcp23017::GetGen1IlkEn()    { return GetPortB() & B3_GEN1_ILK_EN_MASK; }
 bool Mcp23017::GetGenPower()     { return GetPortB() & B4_GEN_POWER_MASK; }
+bool Mcp23017::GetTmpPowerEnIn() { return GetPortB() & B7_TMP_PWR_EN_IN_MASK; }
 
 // ===============================================================
 // Input change callbacks
@@ -213,6 +219,8 @@ void Mcp23017::OnGen1RfOnChanged(bool active)    { qDebug() << "[GPIO] GEN1_RF_O
 void Mcp23017::OnGen1IlkEnChanged(bool active)   { qDebug() << "[GPIO] GEN1_ILK_EN changed =" << active; }
 void Mcp23017::OnPurgeChanged(bool active)       { qDebug() << "[GPIO] PURGE changed =" << active; }
 void Mcp23017::OnIsolationChanged(bool active)   { qDebug() << "[GPIO] ISOLATION changed =" << active; }
+void Mcp23017::onTmpPowerEnInChanged(bool active)   { qDebug()<< "[GPIO] TMP PWR IN changed =" << active<<"  Setting output";
+                                                      SetTmpPowerEnOut(!active);}
 
 void Mcp23017::PrintPortA()
 {
@@ -223,6 +231,7 @@ void Mcp23017::PrintPortA()
    qDebug()<<"  VAC1 = "<< ((a>>A2_VAC1_ILK_BIT) & 1);
    qDebug()<<"  VAC2  = "<< ((a>>A3_VAC2_ILK_BIT) & 1);
    qDebug()<<"  GEN0ILK  = "<< ((a>>A4_FRM_GEN0_ILK_BIT) & 1);
+   qDebug()<<"  TMP_PWR OUT = "<< ((a>>A7_TMP_PWR_EN_OUT_BIT) & 1);
 }
 
 void Mcp23017::PrintPortB()
@@ -234,5 +243,5 @@ void Mcp23017::PrintPortB()
    qDebug()<<"  GEN_RF_ON = "<<((b >> B2_GEN1_RF_ON_BIT) & 1);
    qDebug()<<"  GEN ILK   = "<<((b >> B3_GEN1_ILK_EN_BIT) & 1);
    qDebug()<<"  GEN PWR   = "<<((b >> B4_GEN_POWER_BIT) & 1);
-
+   qDebug()<<"  TMP PWR IN = "<<((b >> B7_TMP_PWR_EN_IN_BIT) & 1);
 }

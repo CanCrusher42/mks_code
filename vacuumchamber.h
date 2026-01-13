@@ -46,7 +46,8 @@ signals:
     void pressureChanged_Torr(double newPressure);
     void pressureChanged_Volts(double volts);
 
-
+    void updateVac1Hp(bool active);
+    void updateVac2Lp(bool active);
 
 private:
     // Replacement for std::clamp (Qt4 safe)

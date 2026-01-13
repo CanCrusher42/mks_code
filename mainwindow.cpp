@@ -52,6 +52,8 @@ MainWindow::MainWindow(QWidget *parent)
     connect(gpio, SIGNAL(IsolationChanged(bool)), chamber, SLOT(setIsolationValve(bool)));
     connect(chamber, SIGNAL(pressureChanged_Torr(double)), mks, SLOT(onUpdatePressure(double)));
 
+    connect (chamber, SIGNAL(updateVac1Hp(bool)), gpio, SLOT(SetVac1Ilk(bool)));
+    connect (chamber, SIGNAL(updateVac2Lp(bool)), gpio, SLOT(SetVac2Ilk(bool)));
 //    connect(this, SIGNAL(GenPowerChanged(bool)), this, SLOT(OnGenPowerChanged(bool)));
 //    connect(this, SIGNAL(Gen1RfOnChanged(bool)), this, SLOT(OnGen1RfOnChanged(bool)));
 //    connect(this, SIGNAL(Gen1IlkEnChanged(bool)), this, SLOT(OnGen1IlkEnChanged(bool)));

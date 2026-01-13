@@ -134,6 +134,9 @@ void VacuumChamber::update()
     const double dt = FIXED_DT;
     static double lastValveFactor = 33;
 
+    m_gpio->SetVac1Ilk(currentPressure_Torr() < 600);
+    m_gpio->SetVac2Ilk(currentPressure_Torr() < 200);
+
     // -------------------------------------------------------------------------
     // ISOLATION VALVE CLOSED → leak-back only
     // -------------------------------------------------------------------------
@@ -241,8 +244,6 @@ void VacuumChamber::update()
     emit pressureChanged_Torr(currentPressure_Torr());
     emit pressureChanged_Volts(pressureVolts());
 
-    m_gpio->SetVac1Ilk(currentPressure_Torr() < 600);
-    m_gpio->SetVac2Ilk(currentPressure_Torr() < 200);
 }
 
 

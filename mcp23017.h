@@ -27,19 +27,22 @@
 #define B2_GEN1_RF_ON_BIT      2
 #define B3_GEN1_ILK_EN_BIT     3
 #define B4_GEN_POWER_BIT       4
+#define B7_TMP_PWR_EN_IN_BIT   7
 
 #define B0_PURGE_MASK          (1u << B0_PURGE_BIT)
 #define B1_ISOLATION_MASK      (1u << B1_ISOLATION_BIT)
 #define B2_GEN1_RF_ON_MASK     (1u << B2_GEN1_RF_ON_BIT)
 #define B3_GEN1_ILK_EN_MASK    (1u << B3_GEN1_ILK_EN_BIT)
 #define B4_GEN_POWER_MASK      (1u << B4_GEN_POWER_BIT)
+#define B7_TMP_PWR_EN_IN_MASK  (1u << B7_TMP_PWR_EN_IN_BIT )
 
 #define PORTB_INPUT_MASK ( \
     B0_PURGE_MASK       | \
     B1_ISOLATION_MASK   | \
     B2_GEN1_RF_ON_MASK  | \
     B3_GEN1_ILK_EN_MASK | \
-    B4_GEN_POWER_MASK )
+    B4_GEN_POWER_MASK   | \
+    B7_TMP_PWR_EN_IN_MASK )
 
 // ===============================================================
 // PORT A OUTPUT BIT DEFINITIONS (updated)
@@ -49,6 +52,7 @@
 #define A2_VAC1_ILK_BIT        2
 #define A3_VAC2_ILK_BIT        3
 #define A4_FRM_GEN0_ILK_BIT    4
+#define A7_TMP_PWR_EN_OUT_BIT  7
 
 
 #define A0_DOOR_ILK_MASK       (1u << A0_DOOR_ILK_BIT)
@@ -56,13 +60,15 @@
 #define A2_VAC1_ILK_MASK       (1u << A2_VAC1_ILK_BIT)
 #define A3_VAC2_ILK_MASK       (1u << A3_VAC2_ILK_BIT)
 #define A4_FRM_GEN0_ILK_MASK   (1u << A4_FRM_GEN0_ILK_BIT)
+#define A7_TMP_PWR_EN_OUT_MASK     (1u << A7_TMP_PWR_EN_OUT_BIT)
 
 #define PORTA_INPUT_MASK ( \
     A0_DOOR_ILK_MASK  | \
     A1_AIR_ILK_MASK   | \
     A2_VAC1_ILK_MASK  | \
     A3_VAC2_ILK_MASK  | \
-    A4_FRM_GEN0_ILK_MASK )
+    A4_FRM_GEN0_ILK_MASK | \
+    A7_TMP_PWR_EN_OUT_MASK )
 // ===============================================================
 // MCP23017 CLASS
 // ===============================================================
@@ -88,6 +94,7 @@ public slots:
     void SetAirIlk(bool active);
     void SetVac1Ilk(bool active);
     void SetVac2Ilk(bool active);
+    void SetTmpPowerEnOut(bool active);
 
     bool GetDoorIlk();
     bool GetAirIlk();
@@ -104,6 +111,7 @@ public slots:
     bool GetGen1RfOn();
     bool GetGen1IlkEn();
     bool GetGenPower();
+    bool GetTmpPowerEnIn();
 
     // Input change callbacks
     void OnGenPowerChanged(bool active);
@@ -111,6 +119,7 @@ public slots:
     void OnGen1IlkEnChanged(bool active);
     void OnPurgeChanged(bool active);
     void OnIsolationChanged(bool active);
+    void onTmpPowerEnInChanged(bool active);
 
 signals:
     void PurgeChanged(bool active);
@@ -118,7 +127,7 @@ signals:
     void Gen1RfOnChanged(bool active);
     void Gen1IlkEnChanged(bool active);
     void GenPowerChanged(bool active);
-
+    void TmpPowerEnInChanged(bool active);
 private:
     uint8_t addr;
     uint8_t m_lastPortAState;
